@@ -1,76 +1,62 @@
-'''START
+from dataclasses import dataclass
+# basically dataclass stored data/configuration in structured object
+#in dataclass python automatically generate constructor
+from pathlib import Path
 
-1. Import dataclass.
+from sign_language_detection.constant.constants import (
+    DATA_DIR,
+    TRAIN_CSV,
+    VAL_CSV,
+    TEST_CSV,
+    TRAIN_VIDEO_DIR,
+    VAL_VIDEO_DIR,
+    TEST_VIDEO_DIR,
+    DEV_SAMPLES_PER_CLASS,
+    DEV_VAL_SAMPLES_PER_CLASS,
+    NUM_CLASSES,
+    IMAGE_SIZE,
+    SEQUENCE_LENGTH,
+    BATCH_SIZE,
+    EPOCHS,
+    LEARNING_RATE,
+    ARTIFACTS_DIR,
+    )
 
-2. Import Path.
 
-3. Import required constants from:
-   sign_language_detection.constant.constants
+@dataclass
+class DataIngestionConfig:
+    data_dir: Path
+    train_csv: Path
+    val_csv: Path
+    test_csv: Path
+    train_video_dir: Path
+    val_video_dir: Path
+    test_video_dir: Path
+    dev_samples_per_class: int
+    dev_val_samples_per_class: int
 
-4. Create a dataclass:
-   DataIngestionConfig
 
-5. Inside DataIngestionConfig define:
+@dataclass
+class DataValidationConfig:
+    train_csv: Path
+    val_csv: Path
+    test_csv: Path
+    num_classes: int
 
-   a. source dataset identifier
-      → AUTSL Kaggle dataset name
 
-   b. train CSV path
-      → TRAIN_CSV
+@dataclass
+class DataTransformationConfig:
+    image_size: tuple
+    sequence_length: int
+    batch_size: int
 
-   c. validation CSV path
-      → VAL_CSV
 
-   d. test CSV path
-      → TEST_CSV
-
-   e. train video directory
-      → TRAIN_VIDEO_DIR
-
-   f. validation video directory
-      → VAL_VIDEO_DIR
-
-   g. test video directory
-      → TEST_VIDEO_DIR
-
-   h. development samples per class
-      → DEV_SAMPLES_PER_CLASS
-
-   i. development validation samples per class
-      → DEV_VAL_SAMPLES_PER_CLASS
-
-6. Create another dataclass:
-   DataValidationConfig
-
-7. Give it configuration needed for validation:
-
-   a. train CSV path
-   b. validation CSV path
-   c. test CSV path
-   d. expected number of classes
-      → NUM_CLASSES
-
-8. Create another dataclass:
-   DataTransformationConfig
-
-9. Give it:
-
-   a. image size
-   b. sequence length
-   c. batch size
-
-10. Create another dataclass:
-    ModelTrainerConfig
-
-11. Give it:
-
-    a. number of classes
-    b. image size
-    c. sequence length
-    d. batch size
-    e. epochs
-    f. learning rate
-    g. model output/artifact directory
-
-END'''
-
+@dataclass
+class ModelTrainerConfig:
+    num_classes: int
+    image_size: tuple
+    sequence_length: int
+    batch_size: int
+    epochs: int
+    learning_rate: float
+    artifacts_dir: Path
