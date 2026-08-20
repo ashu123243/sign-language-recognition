@@ -26,12 +26,17 @@ from sign_language_detection.constant.constants import (
 @dataclass
 class DataIngestionConfig:
     data_dir: Path
+    artifacts_dir: Path
+    
     train_csv: Path
     val_csv: Path
     test_csv: Path
+    
     train_video_dir: Path
     val_video_dir: Path
     test_video_dir: Path
+    
+    num_classes: int
     dev_samples_per_class: int
     dev_val_samples_per_class: int
 

@@ -34,12 +34,14 @@ class ConfigurationManager:
     def get_data_ingestion_config(self):
         config=DataIngestionConfig(
             data_dir=self.data_dir,
+            artifacts_dir=self.artifacts_dir,
             train_csv=TRAIN_CSV,
             val_csv=VAL_CSV,
             test_csv=TEST_CSV,
             train_video_dir=TRAIN_VIDEO_DIR,
             val_video_dir=VAL_VIDEO_DIR,
             test_video_dir=TEST_VIDEO_DIR,
+            num_classes=NUM_CLASSES,
             dev_samples_per_class=DEV_SAMPLES_PER_CLASS,
             dev_val_samples_per_class=DEV_VAL_SAMPLES_PER_CLASS,
         )
