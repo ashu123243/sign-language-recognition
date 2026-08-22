@@ -14,8 +14,9 @@ from sign_language_detection.constant.constants import (
     DEV_SAMPLES_PER_CLASS,
     DEV_VAL_SAMPLES_PER_CLASS,
     NUM_CLASSES,
-    IMAGE_SIZE,
-    SEQUENCE_LENGTH,
+    IMAGE_HEIGHT,
+    IMAGE_WIDTH,
+    NUM_FRAMES,
     BATCH_SIZE,
     EPOCHS,
     LEARNING_RATE,
@@ -32,6 +33,10 @@ class DataIngestionConfig:
     val_csv: Path
     test_csv: Path
     
+    train_processed_csv: Path
+    val_processed_csv: Path
+    test_processed_csv: Path
+    
     train_video_dir: Path
     val_video_dir: Path
     test_video_dir: Path
@@ -43,24 +48,33 @@ class DataIngestionConfig:
 
 @dataclass
 class DataValidationConfig:
-    train_csv: Path
-    val_csv: Path
-    test_csv: Path
+    train_processed_csv: Path
+    val_processed_csv: Path
+    test_processed_csv: Path
     num_classes: int
 
 
 @dataclass
 class DataTransformationConfig:
-    image_size: tuple
-    sequence_length: int
+    train_processed_csv: Path
+    val_processed_csv: Path
+    test_processed_csv: Path
     batch_size: int
+    num_frames: int
+    image_height :int
+    image_width :int
+    transformed_data_dir:Path
+    train_video_dir: Path
+    val_video_dir: Path
+    test_video_dir: Path
 
 
 @dataclass
 class ModelTrainerConfig:
     num_classes: int
-    image_size: tuple
-    sequence_length: int
+    image_height:int
+    image_width:int
+    num_frames: int
     batch_size: int
     epochs: int
     learning_rate: float

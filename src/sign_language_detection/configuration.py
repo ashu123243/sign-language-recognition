@@ -17,11 +17,16 @@ from sign_language_detection.constant.constants import (
     DEV_SAMPLES_PER_CLASS,
     DEV_VAL_SAMPLES_PER_CLASS,
     NUM_CLASSES,
-    IMAGE_SIZE,
-    SEQUENCE_LENGTH,
+    IMAGE_HEIGHT,
+    IMAGE_WIDTH,
+    NUM_FRAMES,
     BATCH_SIZE,
     EPOCHS,
     LEARNING_RATE,
+    TRANSFORMED_DATA_DIR,
+    TRAIN_PROCESSED_CSV,
+    VAL_PROCESSED_CSV,
+    TEST_PROCESSED_CSV,
 )
 
 
@@ -38,6 +43,9 @@ class ConfigurationManager:
             train_csv=TRAIN_CSV,
             val_csv=VAL_CSV,
             test_csv=TEST_CSV,
+            train_processed_csv=TRAIN_PROCESSED_CSV,
+            val_processed_csv=VAL_PROCESSED_CSV,
+            test_processed_csv=TEST_PROCESSED_CSV,
             train_video_dir=TRAIN_VIDEO_DIR,
             val_video_dir=VAL_VIDEO_DIR,
             test_video_dir=TEST_VIDEO_DIR,
@@ -49,26 +57,35 @@ class ConfigurationManager:
 
     def get_data_validation_config(self):
         config=DataValidationConfig(
-            train_csv=TRAIN_CSV,
-            val_csv=VAL_CSV,
-            test_csv=TEST_CSV,
+            train_processed_csv=TRAIN_PROCESSED_CSV,
+            val_processed_csv=VAL_PROCESSED_CSV,
+            test_processed_csv=TEST_PROCESSED_CSV,
             num_classes=NUM_CLASSES,
         )
         return config
 
     def get_data_transformation_config(self):
         config=DataTransformationConfig(
-            image_size=IMAGE_SIZE,
-            sequence_length=SEQUENCE_LENGTH,
+            train_processed_csv=TRAIN_PROCESSED_CSV,
+            val_processed_csv=VAL_PROCESSED_CSV,
+            test_processed_csv=TEST_PROCESSED_CSV,
             batch_size=BATCH_SIZE,
+            num_frames = NUM_FRAMES,
+            image_height = IMAGE_HEIGHT,
+            image_width = IMAGE_WIDTH,
+            transformed_data_dir=TRANSFORMED_DATA_DIR,
+            train_video_dir=TRAIN_VIDEO_DIR,
+            val_video_dir=VAL_VIDEO_DIR,
+            test_video_dir=TEST_VIDEO_DIR,
         )
         return config
 
     def get_model_trainer_config(self):
         config=ModelTrainerConfig(
             num_classes=NUM_CLASSES,
-            image_size=IMAGE_SIZE,
-            sequence_length=SEQUENCE_LENGTH,
+            image_height = IMAGE_HEIGHT,
+            image_width = IMAGE_WIDTH,
+            num_frames=NUM_FRAMES,
             batch_size=BATCH_SIZE,
             epochs=EPOCHS,
             learning_rate=LEARNING_RATE,

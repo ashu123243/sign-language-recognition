@@ -36,16 +36,20 @@ TEST_VIDEO_DIR = AUTSL_DIR / "test"
 
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
 LOGS_DIR = PROJECT_ROOT / "logs"
-
+TRANSFORMED_DATA_DIR=ARTIFACTS_DIR/"data_transformed"
+TRAIN_PROCESSED_CSV = ARTIFACTS_DIR / "data" / "train_processed.csv"
+VAL_PROCESSED_CSV = ARTIFACTS_DIR / "data" / "val_processed.csv"
+TEST_PROCESSED_CSV = ARTIFACTS_DIR / "data" / "test_processed.csv"
 # ==============================
 # Dataset Configuration
 # ==============================
 
 NUM_CLASSES = 226
 
-IMAGE_SIZE = (160, 160)
+IMAGE_HEIGHT=224
+IMAGE_WIDTH=224
 
-SEQUENCE_LENGTH = 16
+NUM_FRAMES = 16
 
 # ==============================
 # Development Configuration
@@ -58,7 +62,7 @@ DEV_VAL_SAMPLES_PER_CLASS = 2
 # Model Configuration
 # ==============================
 
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 
 EPOCHS = 20
 

@@ -13,22 +13,22 @@ class DataValidation:
     def _load_prepared_data(self):
         
         try:
-            train_csv=self.config.train_csv
-            if not train_csv.exists():
+            train_processed_csv=self.config.train_processed_csv
+            if not train_processed_csv.exists():
                 raise Exception("Train CSV does not exist")
             
-            val_csv=self.config.val_csv
-            if not val_csv.exists():
+            val_processed_csv=self.config.val_processed_csv
+            if not val_processed_csv.exists():
                 raise Exception("Val CSV does not exist")
             
-            test_csv=self.config.test_csv
-            if not test_csv.exists():
+            test_processed_csv=self.config.test_processed_csv
+            if not test_processed_csv.exists():
                 raise Exception("Test CSV does not exist")
             
             logger.info("All CSV files are available")
-            train_data=pd.read_csv(train_csv,header=None,names=["filename", "label"])
-            val_data=pd.read_csv(val_csv,header=None,names=["filename", "label"])
-            test_data=pd.read_csv(test_csv,header=None,names=["filename", "label"])
+            train_data=pd.read_csv(train_processed_csv)
+            val_data=pd.read_csv(val_processed_csv)
+            test_data=pd.read_csv(test_processed_csv)
             logger.info("All CSV files are loaded in DataFrames")
             return train_data,val_data,test_data
         except Exception as e:

@@ -90,12 +90,10 @@ class DataIngestion:
     
     def _save_prepared_metadata(self, train_data, val_data, test_data):
         try:
-            artifacts_dir=self.config.artifacts_dir
-            artifacts_data_dir=artifacts_dir/"data"    
-            artifacts_data_dir.mkdir(parents=True,exist_ok=True)
-            train_output = artifacts_data_dir / "train.csv"
-            val_output   = artifacts_data_dir / "val.csv"
-            test_output  = artifacts_data_dir / "test.csv"
+            train_output = self.config.train_processed_csv
+            val_output = self.config.val_processed_csv
+            test_output = self.config.test_processed_csv
+            train_output.parent.mkdir(parents=True, exist_ok=True)
             train_data.to_csv(train_output, index=False)
             val_data.to_csv(val_output, index=False)
             test_data.to_csv(test_output, index=False)
@@ -128,11 +126,11 @@ class DataIngestion:
             test_video_dir = self.config.test_video_dir
 
             if not train_video_dir.exists():
-                train_video_dir.mkdir(parents=True, exist_ok=True)
+                raise Exception(f"Train video directory not found: {train_video_dir}")
             if not val_video_dir.exists():
-                val_video_dir.mkdir(parents=True, exist_ok=True)
+                raise Exception(f"Validation video directory not found: {val_video_dir}")
             if not test_video_dir.exists():
-                test_video_dir.mkdir(parents=True, exist_ok=True)
+                raise Exception(f"Test video directory not found: {test_video_dir}")
 
             logger.info("Video directories are ready")
             
