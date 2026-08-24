@@ -108,48 +108,71 @@ class ModelTrainer:
         
         inputs = tf.keras.Input(shape=input_shape)
         
-        x = tf.keras.layers.Conv3D(
-            filters=32,
-            kernel_size=(3, 3, 3),
-            activation="relu",
-            padding="same"
+        x = tf.keras.layers.TimeDistributed(
+            tf.keras.layers.Conv2D(
+                filters=32,
+                kernel_size=(3, 3),
+                activation="relu",
+                padding="same"
+            )
         )(inputs)
-        
-        x=tf.keras.layers.MaxPooling3D(
-            pool_size=(2,2,2)
+    
+        x = tf.keras.layers.TimeDistributed(
+            tf.keras.layers.MaxPooling2D(
+                pool_size=(2, 2)
+            )
+        )(x)
+        x = tf.keras.layers.TimeDistributed(
+            tf.keras.layers.Conv2D(
+                filters=64,
+                kernel_size=(3, 3),
+                activation="relu",
+                padding="same"
+            )
         )(x)
         
-        x = tf.keras.layers.Conv3D(
-            filters=64,
-            kernel_size=(3, 3, 3),
-            activation="relu",
-            padding="same"
+        x = tf.keras.layers.TimeDistributed(
+            tf.keras.layers.MaxPooling2D(
+                pool_size=(2, 2)
+            )
         )(x)
         
-        x=tf.keras.layers.MaxPooling3D(
-            pool_size=(2,2,2)
+        x = tf.keras.layers.TimeDistributed(
+            tf.keras.layers.Conv2D(
+                filters=128,
+                kernel_size=(3, 3),
+                activation="relu",
+                padding="same"
+            )
+        )(x)
+    
+        x = tf.keras.layers.TimeDistributed(
+            tf.keras.layers.GlobalAveragePooling2D()
         )(x)
         
-        x = tf.keras.layers.Conv3D(
-            filters=128,
-            kernel_size=(3, 3, 3),
-            activation="relu",
-            padding="same"
+        x = tf.keras.layers.GRU(
+            128,
+            return_sequences=False
         )(x)
         
-        x=tf.keras.layers.GlobalAveragePooling3D()(x)
+        # Classification head
+        x = tf.keras.layers.Dense(
+            128,
+            activation="relu"
+        )(x)
         
-        x=tf.keras.layers.Dense(128,activation="relu")(x)
+        x = tf.keras.layers.Dropout(0.3)(x)
         
-        x=tf.keras.layers.Dropout(0.2)(x)
-        
-        x=tf.keras.layers.Dense(self.config.num_classes,activation="softmax")(x)
+        outputs = tf.keras.layers.Dense(
+            self.config.num_classes,
+            activation="softmax"
+        )(x)
         
         model = tf.keras.Model(
             inputs=inputs,
-            outputs=x
+            outputs=outputs
         )
-
+        
         return model
      
     def _compile_model(self,model):
