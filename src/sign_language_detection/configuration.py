@@ -6,27 +6,17 @@ from sign_language_detection.entity.config_entity import(
 )
 
 from sign_language_detection.constant.constants import (
-    DATA_DIR,
-    ARTIFACTS_DIR,
-    TRAIN_CSV,
-    VAL_CSV,
-    TEST_CSV,
-    TRAIN_VIDEO_DIR,
-    VAL_VIDEO_DIR,
-    TEST_VIDEO_DIR,
-    DEV_SAMPLES_PER_CLASS,
-    DEV_VAL_SAMPLES_PER_CLASS,
-    NUM_CLASSES,
-    IMAGE_HEIGHT,
-    IMAGE_WIDTH,
-    NUM_FRAMES,
-    BATCH_SIZE,
-    EPOCHS,
-    LEARNING_RATE,
+    DATA_DIR, ARTIFACTS_DIR,
+    TRAIN_CSV, VAL_CSV, TEST_CSV,
+    TRAIN_VIDEO_DIR, VAL_VIDEO_DIR, TEST_VIDEO_DIR,
+    DEV_SAMPLES_PER_CLASS, DEV_VAL_SAMPLES_PER_CLASS,
+    NUM_CLASSES, NUM_FRAMES,
+    IMAGE_HEIGHT, IMAGE_WIDTH,
+    BATCH_SIZE, EPOCHS, LEARNING_RATE,
     TRANSFORMED_DATA_DIR,
-    TRAIN_PROCESSED_CSV,
-    VAL_PROCESSED_CSV,
-    TEST_PROCESSED_CSV,
+    TRAIN_PROCESSED_CSV, VAL_PROCESSED_CSV, TEST_PROCESSED_CSV,
+    MODEL_DIR, MODEL_FILE,
+    CHECKPOINT_DIR, CHECKPOINT_FILE,
 )
 
 
@@ -89,7 +79,11 @@ class ConfigurationManager:
             batch_size=BATCH_SIZE,
             epochs=EPOCHS,
             learning_rate=LEARNING_RATE,
-            artifacts_dir=self.artifacts_dir
+            transformed_data_dir=TRANSFORMED_DATA_DIR,
+            model_dir =MODEL_DIR,
+            model_file =MODEL_FILE,
+            checkpoint_dir=CHECKPOINT_DIR,
+            checkpoint_file=CHECKPOINT_FILE,
         )
         return config
     

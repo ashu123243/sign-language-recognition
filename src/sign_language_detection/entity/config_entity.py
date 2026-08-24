@@ -78,4 +78,8 @@ class ModelTrainerConfig:
     batch_size: int
     epochs: int
     learning_rate: float
-    artifacts_dir: Path
+    transformed_data_dir:Path
+    model_dir :Path
+    model_file :Path
+    checkpoint_dir: Path
+    checkpoint_file: Path

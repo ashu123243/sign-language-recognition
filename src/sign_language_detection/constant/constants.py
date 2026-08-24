@@ -68,6 +68,13 @@ EPOCHS = 20
 
 LEARNING_RATE = 1e-4
 
+MODEL_DIR = ARTIFACTS_DIR / "model"
+
+MODEL_FILE = MODEL_DIR / "sign_language_model.keras"
+
+CHECKPOINT_DIR = ARTIFACTS_DIR / "checkpoints"
+
+CHECKPOINT_FILE = CHECKPOINT_DIR / "best_model.keras"
 # ==============================
 # File Extensions
 # ==============================

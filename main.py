@@ -7,7 +7,7 @@ def main():
 
     config_manager = ConfigurationManager()
 
-    data_ingestion_config = config_manager.get_data_ingestion_config()
+    '''data_ingestion_config = config_manager.get_data_ingestion_config()
     data_ingestion = DataIngestion(
         config=data_ingestion_config
     )
@@ -36,7 +36,7 @@ def main():
     data_transformation_output = (
         data_transformation.initiate_data_transformation()
     )
-    print("\nData Transformation Completed Successfully")
+    print("\nData Transformation Completed Successfully")'''
 
 if __name__ == "__main__":
     main()
