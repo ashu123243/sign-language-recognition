@@ -62,7 +62,7 @@ DEV_VAL_SAMPLES_PER_CLASS = 2
 # Model Configuration
 # ==============================
 
-BATCH_SIZE = 16
+BATCH_SIZE = 2
 
 EPOCHS = 20
 
