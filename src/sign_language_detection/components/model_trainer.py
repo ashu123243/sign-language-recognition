@@ -90,6 +90,11 @@ class ModelTrainer:
             )
         )
         tf_dataset = tf.data.Dataset.from_generator(generator=generator,output_signature=output_signature)
+        tf_dataset = tf_dataset.unbatch()
+        tf_dataset = tf_dataset.batch(
+            self.config.batch_size,
+            drop_remainder=False
+        )
         if split_name == "train":
             tf_dataset = tf_dataset.shuffle(buffer_size = 10)
         tf_dataset = tf_dataset.prefetch(
@@ -205,7 +210,7 @@ class ModelTrainer:
             
         early_stopping = tf.keras.callbacks.EarlyStopping(
             monitor="val_loss",
-            patience=3,
+            patience=5,
             restore_best_weights=True
         )
         
@@ -219,7 +224,7 @@ class ModelTrainer:
             monitor="val_loss",
             factor=0.5,
             patience=2,
-            min_lr=1e-7
+            min_lr=1e-6
         )
         
         callbacks = [early_stopping, model_checkpoint, reduce_lr]
