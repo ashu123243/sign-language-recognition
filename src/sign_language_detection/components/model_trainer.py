@@ -124,8 +124,7 @@ class ModelTrainer:
         )
         
         base_model.trainable = True
-        
-        for layer in base_model.layers[:100]:
+        for layer in base_model.layers[:130]:
             layer.trainable = False
         
         x = tf.keras.layers.TimeDistributed(base_model)(x)
@@ -135,9 +134,14 @@ class ModelTrainer:
             return_sequences=False
         )(x)
         
-        x = tf.keras.layers.Dense(128, activation="relu")(x)
-        x = tf.keras.layers.Dropout(0.3)(x)
+        x = tf.keras.layers.Dense(
+            128, 
+            activation="relu",
+            kernel_regularizer=tf.keras.regularizers.l2(0.01)
+        )(x)
         
+        x = tf.keras.layers.Dropout(0.6)(x)
+    
         outputs = tf.keras.layers.Dense(
             self.config.num_classes,
             activation="softmax"
