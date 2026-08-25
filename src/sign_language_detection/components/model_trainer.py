@@ -103,7 +103,6 @@ class ModelTrainer:
         return tf_dataset
      
     def _build_model(self):
-        
         input_shape = (
             self.config.num_frames,
             self.config.image_height,
@@ -113,54 +112,22 @@ class ModelTrainer:
         
         inputs = tf.keras.Input(shape=input_shape)
         
-        x = tf.keras.layers.TimeDistributed(
-            tf.keras.layers.Conv2D(
-                filters=32,
-                kernel_size=(3, 3),
-                activation="relu",
-                padding="same"
-            )
-        )(inputs)
-    
-        x = tf.keras.layers.TimeDistributed(
-            tf.keras.layers.MaxPooling2D(
-                pool_size=(2, 2)
-            )
-        )(x)
-        x = tf.keras.layers.TimeDistributed(
-            tf.keras.layers.Conv2D(
-                filters=64,
-                kernel_size=(3, 3),
-                activation="relu",
-                padding="same"
-            )
-        )(x)
+        base_model = tf.keras.applications.MobileNetV2(
+            input_shape=(self.config.image_height, self.config.image_width, 3),
+            include_top=False,
+            weights='imagenet',
+            pooling='avg' 
+        )
         
-        x = tf.keras.layers.TimeDistributed(
-            tf.keras.layers.MaxPooling2D(
-                pool_size=(2, 2)
-            )
-        )(x)
-        
-        x = tf.keras.layers.TimeDistributed(
-            tf.keras.layers.Conv2D(
-                filters=128,
-                kernel_size=(3, 3),
-                activation="relu",
-                padding="same"
-            )
-        )(x)
-    
-        x = tf.keras.layers.TimeDistributed(
-            tf.keras.layers.GlobalAveragePooling2D()
-        )(x)
+        base_model.trainable = False
+
+        x = tf.keras.layers.TimeDistributed(base_model)(inputs)
         
         x = tf.keras.layers.GRU(
             128,
             return_sequences=False
         )(x)
         
-        # Classification head
         x = tf.keras.layers.Dense(
             128,
             activation="relu"
