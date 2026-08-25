@@ -112,27 +112,30 @@ class ModelTrainer:
         
         inputs = tf.keras.Input(shape=input_shape)
         
+        x = tf.keras.layers.TimeDistributed(
+            tf.keras.layers.Rescaling(scale=2.0, offset=-1.0)
+        )(inputs)
+        
         base_model = tf.keras.applications.MobileNetV2(
             input_shape=(self.config.image_height, self.config.image_width, 3),
             include_top=False,
             weights='imagenet',
-            pooling='avg' 
+            pooling='avg'
         )
         
-        base_model.trainable = False
-
-        x = tf.keras.layers.TimeDistributed(base_model)(inputs)
+        base_model.trainable = True
+        
+        for layer in base_model.layers[:100]:
+            layer.trainable = False
+        
+        x = tf.keras.layers.TimeDistributed(base_model)(x)
         
         x = tf.keras.layers.GRU(
             128,
             return_sequences=False
         )(x)
         
-        x = tf.keras.layers.Dense(
-            128,
-            activation="relu"
-        )(x)
-        
+        x = tf.keras.layers.Dense(128, activation="relu")(x)
         x = tf.keras.layers.Dropout(0.3)(x)
         
         outputs = tf.keras.layers.Dense(
@@ -140,11 +143,7 @@ class ModelTrainer:
             activation="softmax"
         )(x)
         
-        model = tf.keras.Model(
-            inputs=inputs,
-            outputs=outputs
-        )
-        
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
         return model
      
     def _compile_model(self,model):
