@@ -2,6 +2,7 @@ from sign_language_detection.configuration import ConfigurationManager
 from sign_language_detection.components.data_ingestion import DataIngestion
 from sign_language_detection.components.data_validation import DataValidation
 from sign_language_detection.components.data_transformation import DataTransformation
+from sign_language_detection.components.model_trainer import ModelTrainer
 
 def main():
 
@@ -37,6 +38,17 @@ def main():
         data_transformation.initiate_data_transformation()
     )
     print("\nData Transformation Completed Successfully")'''
+    
+    model_trainer_config = config_manager.get_model_trainer_config()
 
+    model_trainer = ModelTrainer(
+        config=model_trainer_config
+    )
+
+    model_file = model_trainer.initiate_model_training()
+
+    print("\nModel Training Completed Successfully")
+    print(f"Model saved at: {model_file}")
+    
 if __name__ == "__main__":
     main()

@@ -40,10 +40,9 @@ class ModelTrainer:
         
         try:
             
-            data=np.load(batch_path)
-            
-            features = data["features"]
-            labels = data["labels"]
+            with np.load(batch_path) as data:
+                features = data["features"]
+                labels = data["labels"]
             
             if len(features)==0:
                 raise Exception(f"Features are empty for {batch_path}")
@@ -63,34 +62,18 @@ class ModelTrainer:
             logger.error(f"Failed to load batch: {batch_path}")
             raise CustomException (str(e),sys.exc_info())
 
-    def _create_tf_dataset(self, split_name):
-        generator = lambda: self._create_dataset(split_name)
-        output_signature = (
-            tf.TensorSpec(
-                shape=(None, self.config.num_frames, self.config.image_height, self.config.image_width, 3),
-                dtype=tf.float32
-            ),
-            tf.TensorSpec(shape=(None,), dtype=tf.int64)
-        )
-        tf_dataset = tf.data.Dataset.from_generator(generator=generator, output_signature=output_signature)
-        tf_dataset = tf_dataset.unbatch()
-        
-        def to_one_hot(features, labels):
-            return features, tf.one_hot(labels, depth=self.config.num_classes)
-        
-        tf_dataset = tf_dataset.map(to_one_hot, num_parallel_calls=tf.data.AUTOTUNE)
-        
-        tf_dataset = tf_dataset.batch(self.config.batch_size, drop_remainder=False)
-        if split_name == "train":
-            tf_dataset = tf_dataset.shuffle(buffer_size=100) # Increased shuffle buffer
-        tf_dataset = tf_dataset.prefetch(tf.data.AUTOTUNE)
-        
-        return tf_dataset
+    def _create_dataset(self, split_name):
+        batch_files = self._get_batch_files(split_name)
+
+        for batch_path in batch_files:
+            features, labels = self._load_batch(batch_path)
+            yield features, labels
     
-    def _create_tf_dataset(self,split_name):
-        
+    def _create_tf_dataset(self, split_name):
+
         generator = lambda: self._create_dataset(split_name)
-        output_signature=(
+
+        output_signature = (
             tf.TensorSpec(
                 shape=(
                     None,
@@ -106,17 +89,30 @@ class ModelTrainer:
                 dtype=tf.int64
             )
         )
-        tf_dataset = tf.data.Dataset.from_generator(generator=generator,output_signature=output_signature)
+
+        tf_dataset = tf.data.Dataset.from_generator(
+            generator=generator,
+            output_signature=output_signature
+        )
+
         tf_dataset = tf_dataset.unbatch()
+
+        if split_name == "train":
+            tf_dataset = tf_dataset.shuffle(
+                buffer_size=512,
+                seed=42,
+                reshuffle_each_iteration=True
+            )
+
         tf_dataset = tf_dataset.batch(
             self.config.batch_size,
             drop_remainder=False
         )
-        if split_name == "train":
-            tf_dataset = tf_dataset.shuffle(buffer_size = 10)
+
         tf_dataset = tf_dataset.prefetch(
             tf.data.AUTOTUNE
         )
+
         return tf_dataset
      
     def _build_model(self):
@@ -170,13 +166,16 @@ class ModelTrainer:
     def _compile_model(self, model):
         
         optimizer = tf.keras.optimizers.AdamW(
-            learning_rate=1e-4,
+            learning_rate=self.config.learning_rate,
             weight_decay=1e-4,
             clipnorm=1.0 
         )
         
-        loss = tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1)
-        metrics = [tf.keras.metrics.CategoricalAccuracy()]
+        loss = tf.keras.losses.SparseCategoricalCrossentropy()
+
+        metrics = [
+            tf.keras.metrics.SparseCategoricalAccuracy()
+        ]
         
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
         return model
