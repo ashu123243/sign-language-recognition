@@ -36,7 +36,12 @@ TEST_VIDEO_DIR = AUTSL_DIR / "test"
 
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
 LOGS_DIR = PROJECT_ROOT / "logs"
-TRANSFORMED_DATA_DIR=ARTIFACTS_DIR/"data_transformed"
+if Path("/kaggle/input").exists():
+    TRANSFORMED_DATA_DIR = Path(
+        "/kaggle/input/datasets/ashutoshpal007/sign-language-transformed-data"
+    )
+else:
+    TRANSFORMED_DATA_DIR = ARTIFACTS_DIR / "data_transformed"
 TRAIN_PROCESSED_CSV = ARTIFACTS_DIR / "data" / "train_processed.csv"
 VAL_PROCESSED_CSV = ARTIFACTS_DIR / "data" / "val_processed.csv"
 TEST_PROCESSED_CSV = ARTIFACTS_DIR / "data" / "test_processed.csv"
