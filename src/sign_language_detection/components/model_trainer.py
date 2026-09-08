@@ -33,9 +33,7 @@ class AUTSLDataset(Dataset):
 
                 labels = data["labels"]
 
-                num_samples = len(labels)
-
-                for index in range(num_samples):
+                for index in range(len(labels)):
 
                     self.samples.append(
                         (batch_path, index)
@@ -46,6 +44,11 @@ class AUTSLDataset(Dataset):
                 "Dataset contains no samples."
             )
 
+        # Cache the most recently accessed batch file
+        self._cached_path = None
+        self._cached_features = None
+        self._cached_labels = None
+
     def __len__(self):
         return len(self.samples)
 
@@ -53,10 +56,18 @@ class AUTSLDataset(Dataset):
 
         batch_path, sample_index = self.samples[index]
 
-        with np.load(batch_path) as data:
+        # Load a batch file only when it changes
+        if self._cached_path != batch_path:
 
-            features = data["features"][sample_index]
-            label = data["labels"][sample_index]
+            with np.load(batch_path) as data:
+
+                self._cached_features = data["features"].copy()
+                self._cached_labels = data["labels"].copy()
+
+            self._cached_path = batch_path
+
+        features = self._cached_features[sample_index]
+        label = self._cached_labels[sample_index]
 
         features = features.astype(
             np.float32
@@ -83,7 +94,6 @@ class AUTSLDataset(Dataset):
         )
 
         return features, label
-
 
 class ModelTrainer:
 
