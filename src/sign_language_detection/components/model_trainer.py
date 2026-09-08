@@ -189,7 +189,7 @@ class ModelTrainer:
                 dataset,
                 batch_size=self.config.batch_size,
                 shuffle=(split_name == "train"),
-                num_workers=0,
+                num_workers=2,
                 pin_memory=(self.device.type == "cuda")
             )
 
