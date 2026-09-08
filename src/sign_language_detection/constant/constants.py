@@ -67,7 +67,7 @@ DEV_VAL_SAMPLES_PER_CLASS = 2
 # Model Configuration
 # ==============================
 
-BATCH_SIZE = 1
+BATCH_SIZE = 2
 EPOCHS = 12
 
 LAYER3_LEARNING_RATE = 5e-6
