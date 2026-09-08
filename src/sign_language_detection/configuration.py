@@ -12,7 +12,17 @@ from sign_language_detection.constant.constants import (
     DEV_SAMPLES_PER_CLASS, DEV_VAL_SAMPLES_PER_CLASS,
     NUM_CLASSES, NUM_FRAMES,
     IMAGE_HEIGHT, IMAGE_WIDTH,
-    BATCH_SIZE, EPOCHS, LEARNING_RATE,
+    BATCH_SIZE, EPOCHS,
+    LAYER3_LEARNING_RATE,
+    LAYER4_LEARNING_RATE,
+    FC_LEARNING_RATE,
+    WEIGHT_DECAY,
+    LABEL_SMOOTHING,
+    GRADIENT_CLIP_VALUE,
+    SCHEDULER_T0,
+    SCHEDULER_T_MULT,
+    SCHEDULER_ETA_MIN,
+    DROPOUT_RATE,
     TRANSFORMED_DATA_DIR,
     TRAIN_PROCESSED_CSV, VAL_PROCESSED_CSV, TEST_PROCESSED_CSV,
     MODEL_DIR, MODEL_FILE,
@@ -71,17 +81,31 @@ class ConfigurationManager:
         return config
 
     def get_model_trainer_config(self):
-        config=ModelTrainerConfig(
+        config = ModelTrainerConfig(
             num_classes=NUM_CLASSES,
-            image_height = IMAGE_HEIGHT,
-            image_width = IMAGE_WIDTH,
+            image_height=IMAGE_HEIGHT,
+            image_width=IMAGE_WIDTH,
             num_frames=NUM_FRAMES,
             batch_size=BATCH_SIZE,
             epochs=EPOCHS,
-            learning_rate=LEARNING_RATE,
+
+            layer3_learning_rate=LAYER3_LEARNING_RATE,
+            layer4_learning_rate=LAYER4_LEARNING_RATE,
+            fc_learning_rate=FC_LEARNING_RATE,
+
+            weight_decay=WEIGHT_DECAY,
+            label_smoothing=LABEL_SMOOTHING,
+            gradient_clip_value=GRADIENT_CLIP_VALUE,
+
+            scheduler_t0=SCHEDULER_T0,
+            scheduler_t_mult=SCHEDULER_T_MULT,
+            scheduler_eta_min=SCHEDULER_ETA_MIN,
+
+            dropout_rate=DROPOUT_RATE,
+
             transformed_data_dir=TRANSFORMED_DATA_DIR,
-            model_dir =MODEL_DIR,
-            model_file =MODEL_FILE,
+            model_dir=MODEL_DIR,
+            model_file=MODEL_FILE,
             checkpoint_dir=CHECKPOINT_DIR,
             checkpoint_file=CHECKPOINT_FILE,
         )

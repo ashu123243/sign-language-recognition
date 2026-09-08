@@ -67,19 +67,30 @@ DEV_VAL_SAMPLES_PER_CLASS = 2
 # Model Configuration
 # ==============================
 
-BATCH_SIZE = 2
+BATCH_SIZE = 1
+EPOCHS = 12
 
-EPOCHS = 1
+LAYER3_LEARNING_RATE = 5e-6
+LAYER4_LEARNING_RATE = 1e-5
+FC_LEARNING_RATE = 1e-4
 
-LEARNING_RATE = 1e-4
+WEIGHT_DECAY = 1e-4
+LABEL_SMOOTHING = 0.1
+GRADIENT_CLIP_VALUE = 1.0
+
+SCHEDULER_T0 = 10
+SCHEDULER_T_MULT = 2
+SCHEDULER_ETA_MIN = 1e-6
+
+DROPOUT_RATE = 0.5
 
 MODEL_DIR = ARTIFACTS_DIR / "model"
 
-MODEL_FILE = MODEL_DIR / "sign_language_model.keras"
+MODEL_FILE = MODEL_DIR / "sign_language_model.pth"
 
 CHECKPOINT_DIR = ARTIFACTS_DIR / "checkpoints"
+CHECKPOINT_FILE = CHECKPOINT_DIR / "best_model.pth"
 
-CHECKPOINT_FILE = CHECKPOINT_DIR / "best_model.keras"
 # ==============================
 # File Extensions
 # ==============================

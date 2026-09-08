@@ -19,7 +19,16 @@ from sign_language_detection.constant.constants import (
     NUM_FRAMES,
     BATCH_SIZE,
     EPOCHS,
-    LEARNING_RATE,
+    LAYER3_LEARNING_RATE,
+    LAYER4_LEARNING_RATE,
+    FC_LEARNING_RATE,
+    WEIGHT_DECAY,
+    LABEL_SMOOTHING,
+    GRADIENT_CLIP_VALUE,
+    SCHEDULER_T0,
+    SCHEDULER_T_MULT,
+    SCHEDULER_ETA_MIN,
+    DROPOUT_RATE,
     ARTIFACTS_DIR,
     )
 
@@ -72,14 +81,28 @@ class DataTransformationConfig:
 @dataclass
 class ModelTrainerConfig:
     num_classes: int
-    image_height:int
-    image_width:int
+    image_height: int
+    image_width: int
     num_frames: int
     batch_size: int
     epochs: int
-    learning_rate: float
-    transformed_data_dir:Path
-    model_dir :Path
-    model_file :Path
+
+    layer3_learning_rate: float
+    layer4_learning_rate: float
+    fc_learning_rate: float
+
+    weight_decay: float
+    label_smoothing: float
+    gradient_clip_value: float
+
+    scheduler_t0: int
+    scheduler_t_mult: int
+    scheduler_eta_min: float
+
+    dropout_rate: float
+
+    transformed_data_dir: Path
+    model_dir: Path
+    model_file: Path
     checkpoint_dir: Path
     checkpoint_file: Path
