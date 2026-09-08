@@ -45,10 +45,9 @@ class AUTSLDataset(Dataset):
             )
 
         # Cache the most recently accessed batch file
-        self._cached_path = None
-        self._cached_features = None
-        self._cached_labels = None
-
+        self._cache = {}
+        self._cache_size = 8
+        
     def __len__(self):
         return len(self.samples)
 
@@ -57,17 +56,25 @@ class AUTSLDataset(Dataset):
         batch_path, sample_index = self.samples[index]
 
         # Load a batch file only when it changes
-        if self._cached_path != batch_path:
+        if batch_path not in self._cache:
 
             with np.load(batch_path) as data:
 
-                self._cached_features = data["features"].copy()
-                self._cached_labels = data["labels"].copy()
+                features = data["features"].copy()
+                labels = data["labels"].copy()
 
-            self._cached_path = batch_path
+            if len(self._cache) >= self._cache_size:
+                self._cache.pop(next(iter(self._cache)))
 
-        features = self._cached_features[sample_index]
-        label = self._cached_labels[sample_index]
+            self._cache[batch_path] = (
+                features,
+                labels
+            )
+
+        features, labels = self._cache[batch_path]
+
+        features = features[sample_index]
+        label = labels[sample_index]
 
         features = features.astype(
             np.float32
