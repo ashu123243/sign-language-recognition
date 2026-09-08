@@ -94,7 +94,12 @@ class ModelTrainer:
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
+        self.use_amp = self.device.type == "cuda"
 
+        self.scaler = torch.amp.GradScaler(
+            "cuda",
+            enabled=self.use_amp
+        )
         logger.info(
             f"Training device: {self.device}"
         )
@@ -330,24 +335,28 @@ class ModelTrainer:
                 set_to_none=True
             )
 
-            outputs = model(inputs)
+            with torch.amp.autocast(
+                device_type="cuda",
+                enabled=self.use_amp
+            ):
+                outputs = model(inputs)
 
-            loss = criterion(
-                outputs,
-                labels
-            )
+                loss = criterion(
+                    outputs,
+                    labels
+                )
 
-            loss.backward()
+            self.scaler.scale(loss).backward()
+
+            self.scaler.unscale_(optimizer)
 
             torch.nn.utils.clip_grad_norm_(
                 model.parameters(),
                 self.config.gradient_clip_value
             )
 
-            optimizer.step()
-
-            # Cosine warm restart is stepped
-            # using fractional epoch progress.
+            self.scaler.step(optimizer)
+            self.scaler.update()
 
             scheduler.step(
                 epoch + (batch_idx + 1) / len(dataloader)
