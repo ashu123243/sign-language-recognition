@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.request import urlretrieve
 
 import cv2
 import numpy as np
@@ -22,6 +23,19 @@ KINETICS_MEAN = np.array(
 KINETICS_STD = np.array(
     [0.22803, 0.22145, 0.21699],
     dtype=np.float32
+)
+
+
+# ============================================================
+# HUGGING FACE MODEL
+# ============================================================
+
+HUGGINGFACE_MODEL_URL = (
+    "https://huggingface.co/"
+    "pal-ashutosh-007/"
+    "sign-language-recognition/"
+    "resolve/main/"
+    "sign_language_model.pth"
 )
 
 
@@ -202,19 +216,88 @@ class SignLanguagePredictor:
         return model
 
     # ========================================================
+    # DOWNLOAD MODEL
+    # ========================================================
+
+    def _download_model(self):
+        """
+        Download the trained model from Hugging Face.
+        """
+
+        print(
+            "[INFO] Model file not found locally."
+        )
+
+        print(
+            "[INFO] Downloading model from Hugging Face..."
+        )
+
+        # Make sure parent directory exists
+        self.model_path.parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        try:
+
+            urlretrieve(
+                HUGGINGFACE_MODEL_URL,
+                self.model_path
+            )
+
+            print(
+                "[INFO] Model downloaded successfully."
+            )
+
+        except Exception as error:
+
+            # Remove incomplete download
+            if self.model_path.exists():
+
+                try:
+                    self.model_path.unlink()
+                except Exception:
+                    pass
+
+            raise RuntimeError(
+                "Failed to download model from "
+                "Hugging Face: "
+                f"{error}"
+            ) from error
+
+    # ========================================================
     # LOAD MODEL
     # ========================================================
 
     def _load_model(self):
         """
         Load trained model state dictionary.
+
+        If the model file is not available locally,
+        automatically download it from Hugging Face.
         """
 
-        if not self.model_path.exists():
-            raise FileNotFoundError(
-                f"Model file not found: "
-                f"{self.model_path}"
+        # ----------------------------------------------------
+        # Check local model
+        # ----------------------------------------------------
+
+        if self.model_path.exists():
+
+            print(
+                "[INFO] Local model file found."
             )
+
+        else:
+
+            # ------------------------------------------------
+            # Render / fresh environment
+            # ------------------------------------------------
+
+            self._download_model()
+
+        # ----------------------------------------------------
+        # Load trained weights
+        # ----------------------------------------------------
 
         checkpoint = torch.load(
             self.model_path,
@@ -253,6 +336,10 @@ class SignLanguagePredictor:
             raise ValueError(
                 "Unsupported model file format."
             )
+
+        # ----------------------------------------------------
+        # Load weights into model
+        # ----------------------------------------------------
 
         self.model.load_state_dict(
             state_dict,
@@ -492,7 +579,9 @@ class SignLanguagePredictor:
 
             cap.release()
 
+        # ----------------------------------------------------
         # Make sure exactly num_frames exist
+        # ----------------------------------------------------
 
         if len(frames) != self.num_frames:
 
@@ -524,22 +613,28 @@ class SignLanguagePredictor:
                 :self.num_frames
             ]
 
+        # ----------------------------------------------------
         # [T,H,W,C]
+        # ----------------------------------------------------
 
         clip = np.stack(
             frames,
             axis=0
         )
 
+        # ----------------------------------------------------
         # Kinetics normalization
+        # ----------------------------------------------------
 
         clip = (
             clip - KINETICS_MEAN
         ) / KINETICS_STD
 
+        # ----------------------------------------------------
         # [T,H,W,C]
         # ->
         # [C,T,H,W]
+        # ----------------------------------------------------
 
         clip = torch.from_numpy(
             clip
