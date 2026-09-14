@@ -1,8 +1,11 @@
 from pathlib import Path
+
 import cv2
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
+
 from torchvision.models.video import r3d_18
 
 
@@ -31,12 +34,15 @@ class SignLanguagePredictor:
     def __init__(
         self,
         model_path: str | Path,
+        class_mapping_path: str | Path,
         num_classes: int = 226,
         num_frames: int = 8,
         image_size: int = 160,
         dropout_rate: float = 0.5,
     ):
         self.model_path = Path(model_path)
+        self.class_mapping_path = Path(class_mapping_path)
+
         self.num_classes = num_classes
         self.num_frames = num_frames
         self.image_size = image_size
@@ -45,28 +51,123 @@ class SignLanguagePredictor:
         # ----------------------------------------------------
         # Device
         # ----------------------------------------------------
+
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
 
-        print(f"[INFO] Inference device: {self.device}")
+        print(
+            f"[INFO] Inference device: {self.device}"
+        )
+
+        # ----------------------------------------------------
+        # Load class mapping
+        # ----------------------------------------------------
+
+        self.class_mapping = self._load_class_mapping()
 
         # ----------------------------------------------------
         # Build model
         # ----------------------------------------------------
+
         self.model = self._build_model()
 
         # ----------------------------------------------------
         # Load trained weights
         # ----------------------------------------------------
+
         self._load_model()
 
         # ----------------------------------------------------
         # Evaluation mode
         # ----------------------------------------------------
+
         self.model.eval()
 
-        print("[INFO] Sign Language model loaded successfully.")
+        print(
+            "[INFO] Sign Language model loaded successfully."
+        )
+
+        print(
+            f"[INFO] Class mapping loaded: "
+            f"{len(self.class_mapping)} classes"
+        )
+
+    # ========================================================
+    # CLASS MAPPING
+    # ========================================================
+
+    def _load_class_mapping(self):
+        """
+        Load ClassId -> English sign name mapping.
+        """
+
+        if not self.class_mapping_path.exists():
+            raise FileNotFoundError(
+                "Class mapping file not found: "
+                f"{self.class_mapping_path}"
+            )
+
+        mapping_df = pd.read_csv(
+            self.class_mapping_path
+        )
+
+        required_columns = {
+            "ClassId",
+            "EN"
+        }
+
+        if not required_columns.issubset(
+            mapping_df.columns
+        ):
+            raise ValueError(
+                "Class mapping CSV must contain "
+                "'ClassId' and 'EN' columns."
+            )
+
+        mapping_df = mapping_df[
+            ["ClassId", "EN"]
+        ].copy()
+
+        mapping_df["ClassId"] = (
+            mapping_df["ClassId"]
+            .astype(int)
+        )
+
+        mapping_df["EN"] = (
+            mapping_df["EN"]
+            .astype(str)
+            .str.strip()
+        )
+
+        if len(mapping_df) != self.num_classes:
+            raise ValueError(
+                f"Expected {self.num_classes} classes, "
+                f"but found {len(mapping_df)}."
+            )
+
+        mapping = dict(
+            zip(
+                mapping_df["ClassId"],
+                mapping_df["EN"]
+            )
+        )
+
+        expected_ids = set(
+            range(self.num_classes)
+        )
+
+        actual_ids = set(
+            mapping.keys()
+        )
+
+        if actual_ids != expected_ids:
+            raise ValueError(
+                "Class mapping IDs do not match "
+                f"0-{self.num_classes - 1}."
+            )
+
+        return mapping
 
     # ========================================================
     # MODEL
@@ -74,23 +175,29 @@ class SignLanguagePredictor:
 
     def _build_model(self):
         """
-        Recreate the exact R3D-18 architecture used during
-        training.
+        Recreate the exact R3D-18 architecture used
+        during training.
         """
 
-        model = r3d_18(weights=None)
+        model = r3d_18(
+            weights=None
+        )
 
         in_features = model.fc.in_features
 
         model.fc = nn.Sequential(
-            nn.Dropout(self.dropout_rate),
+            nn.Dropout(
+                self.dropout_rate
+            ),
             nn.Linear(
                 in_features,
                 self.num_classes
             )
         )
 
-        model = model.to(self.device)
+        model = model.to(
+            self.device
+        )
 
         return model
 
@@ -100,12 +207,13 @@ class SignLanguagePredictor:
 
     def _load_model(self):
         """
-        Load the trained model state dictionary.
+        Load trained model state dictionary.
         """
 
         if not self.model_path.exists():
             raise FileNotFoundError(
-                f"Model file not found: {self.model_path}"
+                f"Model file not found: "
+                f"{self.model_path}"
             )
 
         checkpoint = torch.load(
@@ -114,14 +222,18 @@ class SignLanguagePredictor:
             weights_only=False
         )
 
-        # ----------------------------------------------------
-        # Final model contains only state_dict
-        # ----------------------------------------------------
-
-        if isinstance(checkpoint, dict):
+        if isinstance(
+            checkpoint,
+            dict
+        ):
 
             if "model_state_dict" in checkpoint:
-                state_dict = checkpoint["model_state_dict"]
+
+                state_dict = (
+                    checkpoint[
+                        "model_state_dict"
+                    ]
+                )
 
                 print(
                     "[INFO] Loading model_state_dict "
@@ -129,6 +241,7 @@ class SignLanguagePredictor:
                 )
 
             else:
+
                 state_dict = checkpoint
 
                 print(
@@ -136,6 +249,7 @@ class SignLanguagePredictor:
                 )
 
         else:
+
             raise ValueError(
                 "Unsupported model file format."
             )
@@ -154,11 +268,8 @@ class SignLanguagePredictor:
         total_frames: int
     ):
         """
-        Deterministic temporal sampling used for inference.
-
-        Same basic strategy as validation/test:
-        divide the video into segments and select the
-        center frame from each segment.
+        Deterministic temporal sampling used for
+        validation/test inference.
         """
 
         if total_frames <= 0:
@@ -172,14 +283,21 @@ class SignLanguagePredictor:
 
         indices = []
 
-        for i in range(self.num_frames):
+        for i in range(
+            self.num_frames
+        ):
 
             start = boundaries[i]
             end = boundaries[i + 1]
 
             if end > start:
-                index = (start + end - 1) // 2
+
+                index = (
+                    start + end - 1
+                ) // 2
+
             else:
+
                 index = min(
                     start,
                     total_frames - 1
@@ -187,10 +305,15 @@ class SignLanguagePredictor:
 
             index = max(
                 0,
-                min(index, total_frames - 1)
+                min(
+                    index,
+                    total_frames - 1
+                )
             )
 
-            indices.append(index)
+            indices.append(
+                index
+            )
 
         return indices
 
@@ -199,9 +322,6 @@ class SignLanguagePredictor:
     # ========================================================
 
     def _make_black_clip(self):
-        """
-        Fallback clip if video decoding fails.
-        """
 
         black = np.zeros(
             (
@@ -217,10 +337,15 @@ class SignLanguagePredictor:
             black - KINETICS_MEAN
         ) / KINETICS_STD
 
-        tensor = torch.from_numpy(black)
+        tensor = torch.from_numpy(
+            black
+        )
 
         tensor = tensor.permute(
-            3, 0, 1, 2
+            3,
+            0,
+            1,
+            2
         ).contiguous()
 
         return tensor.float()
@@ -233,36 +358,34 @@ class SignLanguagePredictor:
         self,
         video_path: str | Path
     ):
-        """
-        Load a video and convert it into:
 
-        [3, T, H, W]
+        video_path = str(
+            video_path
+        )
 
-        where:
-            T = 8 frames
-            H = 160
-            W = 160
-        """
-
-        video_path = str(video_path)
-
-        cap = cv2.VideoCapture(video_path)
+        cap = cv2.VideoCapture(
+            video_path
+        )
 
         if not cap.isOpened():
+
             print(
-                f"[WARNING] Could not open video: "
+                "[WARNING] Could not open video: "
                 f"{video_path}"
             )
 
             return self._make_black_clip()
 
         total_frames = int(
-            cap.get(cv2.CAP_PROP_FRAME_COUNT)
+            cap.get(
+                cv2.CAP_PROP_FRAME_COUNT
+            )
         )
 
         if total_frames <= 0:
+
             print(
-                f"[WARNING] Invalid frame count: "
+                "[WARNING] Invalid frame count: "
                 f"{video_path}"
             )
 
@@ -270,8 +393,10 @@ class SignLanguagePredictor:
 
             return self._make_black_clip()
 
-        frame_indices = self._sample_frame_indices(
-            total_frames
+        frame_indices = (
+            self._sample_frame_indices(
+                total_frames
+            )
         )
 
         frames = []
@@ -286,14 +411,23 @@ class SignLanguagePredictor:
                     index
                 )
 
-                success, frame = cap.read()
+                success, frame = (
+                    cap.read()
+                )
 
                 if not success:
 
-                    if last_valid_frame is not None:
-                        frame = last_valid_frame.copy()
+                    if (
+                        last_valid_frame
+                        is not None
+                    ):
+
+                        frame = (
+                            last_valid_frame.copy()
+                        )
 
                     else:
+
                         frame = np.zeros(
                             (
                                 self.image_size,
@@ -304,20 +438,19 @@ class SignLanguagePredictor:
                         )
 
                 else:
-                    last_valid_frame = frame.copy()
 
-                # --------------------------------------------
+                    last_valid_frame = (
+                        frame.copy()
+                    )
+
                 # BGR -> RGB
-                # --------------------------------------------
 
                 frame = cv2.cvtColor(
                     frame,
                     cv2.COLOR_BGR2RGB
                 )
 
-                # --------------------------------------------
                 # Resize
-                # --------------------------------------------
 
                 frame = cv2.resize(
                     frame,
@@ -328,20 +461,22 @@ class SignLanguagePredictor:
                     interpolation=cv2.INTER_LINEAR
                 )
 
-                # --------------------------------------------
                 # [0,255] -> [0,1]
-                # --------------------------------------------
 
-                frame = frame.astype(
-                    np.float32
-                ) / 255.0
+                frame = (
+                    frame.astype(
+                        np.float32
+                    ) / 255.0
+                )
 
-                frames.append(frame)
+                frames.append(
+                    frame
+                )
 
         except Exception as error:
 
             print(
-                f"[WARNING] Video processing failed: "
+                "[WARNING] Video processing failed: "
                 f"{video_path}"
             )
 
@@ -354,21 +489,26 @@ class SignLanguagePredictor:
             return self._make_black_clip()
 
         finally:
+
             cap.release()
 
-        # ----------------------------------------------------
-        # Make sure we have exactly num_frames
-        # ----------------------------------------------------
+        # Make sure exactly num_frames exist
 
         if len(frames) != self.num_frames:
 
-            while len(frames) < self.num_frames:
+            while (
+                len(frames)
+                < self.num_frames
+            ):
 
                 if frames:
+
                     frames.append(
                         frames[-1].copy()
                     )
+
                 else:
+
                     frames.append(
                         np.zeros(
                             (
@@ -380,39 +520,36 @@ class SignLanguagePredictor:
                         )
                     )
 
-            frames = frames[:self.num_frames]
+            frames = frames[
+                :self.num_frames
+            ]
 
-        # ----------------------------------------------------
-        # Stack
         # [T,H,W,C]
-        # ----------------------------------------------------
 
         clip = np.stack(
             frames,
             axis=0
         )
 
-        # ----------------------------------------------------
         # Kinetics normalization
-        # ----------------------------------------------------
 
         clip = (
             clip - KINETICS_MEAN
         ) / KINETICS_STD
 
-        # ----------------------------------------------------
-        # NumPy -> Tensor
         # [T,H,W,C]
         # ->
         # [C,T,H,W]
-        # ----------------------------------------------------
 
         clip = torch.from_numpy(
             clip
         ).float()
 
         clip = clip.permute(
-            3, 0, 1, 2
+            3,
+            0,
+            1,
+            2
         ).contiguous()
 
         return clip
@@ -428,24 +565,21 @@ class SignLanguagePredictor:
     ):
         """
         Predict sign class from a video.
-
-        Returns:
-            {
-                "predicted_class": int,
-                "confidence": float,
-                "top_predictions": [...]
-            }
         """
 
-        video_path = Path(video_path)
+        video_path = Path(
+            video_path
+        )
 
         if not video_path.exists():
+
             raise FileNotFoundError(
-                f"Video file not found: {video_path}"
+                f"Video file not found: "
+                f"{video_path}"
             )
 
         # ----------------------------------------------------
-        # Load video
+        # Load clip
         # ----------------------------------------------------
 
         clip = self._load_video_clip(
@@ -454,14 +588,15 @@ class SignLanguagePredictor:
 
         # ----------------------------------------------------
         # Add batch dimension
-        # [C,T,H,W]
-        # ->
-        # [1,C,T,H,W]
         # ----------------------------------------------------
 
-        clip = clip.unsqueeze(0)
+        clip = clip.unsqueeze(
+            0
+        )
 
-        clip = clip.to(self.device)
+        clip = clip.to(
+            self.device
+        )
 
         # ----------------------------------------------------
         # Inference
@@ -473,9 +608,11 @@ class SignLanguagePredictor:
                 clip
             )
 
-            probabilities = torch.softmax(
-                logits,
-                dim=1
+            probabilities = (
+                torch.softmax(
+                    logits,
+                    dim=1
+                )
             )
 
         # ----------------------------------------------------
@@ -487,14 +624,25 @@ class SignLanguagePredictor:
             self.num_classes
         )
 
-        top_probs, top_indices = torch.topk(
-            probabilities,
-            k=k,
-            dim=1
+        top_probs, top_indices = (
+            torch.topk(
+                probabilities,
+                k=k,
+                dim=1
+            )
         )
 
-        top_probs = top_probs[0].cpu().numpy()
-        top_indices = top_indices[0].cpu().numpy()
+        top_probs = (
+            top_probs[0]
+            .cpu()
+            .numpy()
+        )
+
+        top_indices = (
+            top_indices[0]
+            .cpu()
+            .numpy()
+        )
 
         # ----------------------------------------------------
         # Main prediction
@@ -502,6 +650,12 @@ class SignLanguagePredictor:
 
         predicted_class = int(
             top_indices[0]
+        )
+
+        predicted_sign = (
+            self.class_mapping[
+                predicted_class
+            ]
         )
 
         confidence = float(
@@ -519,27 +673,41 @@ class SignLanguagePredictor:
             top_probs
         ):
 
+            class_id = int(
+                class_idx
+            )
+
             top_predictions.append(
                 {
-                    "class_id": int(class_idx),
-                    "confidence": float(probability)
+                    "class_id": class_id,
+                    "sign": self.class_mapping[
+                        class_id
+                    ],
+                    "confidence": float(
+                        probability
+                    )
                 }
             )
 
         return {
             "predicted_class": predicted_class,
+            "predicted_sign": predicted_sign,
             "confidence": confidence,
             "top_predictions": top_predictions
         }
 
 
 # ============================================================
-# SIMPLE LOCAL TEST
+# LOCAL TEST
 # ============================================================
 
 if __name__ == "__main__":
 
-    PROJECT_ROOT = Path(__file__).resolve().parents[3]
+    PROJECT_ROOT = (
+        Path(__file__)
+        .resolve()
+        .parents[3]
+    )
 
     MODEL_PATH = (
         PROJECT_ROOT
@@ -548,15 +716,33 @@ if __name__ == "__main__":
         / "sign_language_model.pth"
     )
 
+    CLASS_MAPPING_PATH = (
+        PROJECT_ROOT
+        / "data"
+        / "mappings"
+        / "SignList_ClassId_TR_EN.csv"
+    )
+
     predictor = SignLanguagePredictor(
-        model_path=MODEL_PATH
+        model_path=MODEL_PATH,
+        class_mapping_path=CLASS_MAPPING_PATH
     )
 
     print()
     print("=" * 60)
-    print("MODEL LOADING TEST")
+    print("MODEL + CLASS MAPPING TEST")
     print("=" * 60)
-    print(f"Model: {MODEL_PATH}")
-    print(f"Device: {predictor.device}")
+    print(
+        f"Model: {MODEL_PATH}"
+    )
+    print(
+        f"Mapping: {CLASS_MAPPING_PATH}"
+    )
+    print(
+        f"Classes: {len(predictor.class_mapping)}"
+    )
+    print(
+        f"Device: {predictor.device}"
+    )
     print("Status: SUCCESS")
     print("=" * 60)
