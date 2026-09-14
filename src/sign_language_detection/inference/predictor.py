@@ -1,9 +1,9 @@
 from pathlib import Path
 from urllib.request import urlretrieve
+import csv
 
 import cv2
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 
@@ -113,7 +113,8 @@ class SignLanguagePredictor:
 
     def _load_class_mapping(self):
         """
-        Load ClassId -> English sign name mapping.
+        Load ClassId -> English sign name mapping
+        using Python's built-in csv module.
         """
 
         if not self.class_mapping_path.exists():
@@ -122,50 +123,71 @@ class SignLanguagePredictor:
                 f"{self.class_mapping_path}"
             )
 
-        mapping_df = pd.read_csv(
-            self.class_mapping_path
-        )
+        mapping = {}
 
-        required_columns = {
-            "ClassId",
-            "EN"
-        }
+        with open(
+            self.class_mapping_path,
+            "r",
+            encoding="utf-8-sig",
+            newline=""
+        ) as file:
 
-        if not required_columns.issubset(
-            mapping_df.columns
-        ):
-            raise ValueError(
-                "Class mapping CSV must contain "
-                "'ClassId' and 'EN' columns."
-            )
+            reader = csv.DictReader(file)
 
-        mapping_df = mapping_df[
-            ["ClassId", "EN"]
-        ].copy()
+            if reader.fieldnames is None:
+                raise ValueError(
+                    "Class mapping CSV has no header."
+                )
 
-        mapping_df["ClassId"] = (
-            mapping_df["ClassId"]
-            .astype(int)
-        )
+            required_columns = {
+                "ClassId",
+                "EN"
+            }
 
-        mapping_df["EN"] = (
-            mapping_df["EN"]
-            .astype(str)
-            .str.strip()
-        )
+            if not required_columns.issubset(
+                reader.fieldnames
+            ):
+                raise ValueError(
+                    "Class mapping CSV must contain "
+                    "'ClassId' and 'EN' columns."
+                )
 
-        if len(mapping_df) != self.num_classes:
+            for row in reader:
+
+                try:
+                    class_id = int(
+                        row["ClassId"]
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ) as error:
+
+                    raise ValueError(
+                        "Invalid ClassId in mapping CSV."
+                    ) from error
+
+                sign = (
+                    str(row["EN"])
+                    .strip()
+                )
+
+                mapping[class_id] = sign
+
+        # ----------------------------------------------------
+        # Validate number of classes
+        # ----------------------------------------------------
+
+        if len(mapping) != self.num_classes:
             raise ValueError(
                 f"Expected {self.num_classes} classes, "
-                f"but found {len(mapping_df)}."
+                f"but found {len(mapping)}."
             )
 
-        mapping = dict(
-            zip(
-                mapping_df["ClassId"],
-                mapping_df["EN"]
-            )
-        )
+        # ----------------------------------------------------
+        # Validate class IDs
+        # ----------------------------------------------------
 
         expected_ids = set(
             range(self.num_classes)
@@ -232,7 +254,10 @@ class SignLanguagePredictor:
             "[INFO] Downloading model from Hugging Face..."
         )
 
-        # Make sure parent directory exists
+        # ----------------------------------------------------
+        # Create model directory
+        # ----------------------------------------------------
+
         self.model_path.parent.mkdir(
             parents=True,
             exist_ok=True
@@ -256,6 +281,7 @@ class SignLanguagePredictor:
 
                 try:
                     self.model_path.unlink()
+
                 except Exception:
                     pass
 
@@ -290,7 +316,7 @@ class SignLanguagePredictor:
         else:
 
             # ------------------------------------------------
-            # Render / fresh environment
+            # Download model for Render / cloud deployment
             # ------------------------------------------------
 
             self._download_model()
@@ -304,6 +330,10 @@ class SignLanguagePredictor:
             map_location=self.device,
             weights_only=False
         )
+
+        # ----------------------------------------------------
+        # Handle checkpoint format
+        # ----------------------------------------------------
 
         if isinstance(
             checkpoint,
@@ -338,7 +368,7 @@ class SignLanguagePredictor:
             )
 
         # ----------------------------------------------------
-        # Load weights into model
+        # Load weights
         # ----------------------------------------------------
 
         self.model.load_state_dict(
@@ -530,14 +560,18 @@ class SignLanguagePredictor:
                         frame.copy()
                     )
 
+                # ------------------------------------------------
                 # BGR -> RGB
+                # ------------------------------------------------
 
                 frame = cv2.cvtColor(
                     frame,
                     cv2.COLOR_BGR2RGB
                 )
 
+                # ------------------------------------------------
                 # Resize
+                # ------------------------------------------------
 
                 frame = cv2.resize(
                     frame,
@@ -548,7 +582,9 @@ class SignLanguagePredictor:
                     interpolation=cv2.INTER_LINEAR
                 )
 
+                # ------------------------------------------------
                 # [0,255] -> [0,1]
+                # ------------------------------------------------
 
                 frame = (
                     frame.astype(
@@ -827,17 +863,23 @@ if __name__ == "__main__":
     print("=" * 60)
     print("MODEL + CLASS MAPPING TEST")
     print("=" * 60)
+
     print(
         f"Model: {MODEL_PATH}"
     )
+
     print(
         f"Mapping: {CLASS_MAPPING_PATH}"
     )
+
     print(
         f"Classes: {len(predictor.class_mapping)}"
     )
+
     print(
         f"Device: {predictor.device}"
     )
+
     print("Status: SUCCESS")
+
     print("=" * 60)
