@@ -11,11 +11,13 @@ import os
 # CONFIGURATION
 # ============================================================
 
-FASTAPI_URL = os.getenv(
-    "FASTAPI_URL",
-    "http://127.0.0.1:8000/predict"
-)
-
+try:
+    FASTAPI_URL = st.secrets["FASTAPI_URL"]
+except Exception:
+    FASTAPI_URL = os.getenv(
+        "FASTAPI_URL",
+        "http://127.0.0.1:8000/predict"
+    )
 
 # ============================================================
 # PAGE CONFIGURATION
