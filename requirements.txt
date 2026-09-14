@@ -7,3 +7,6 @@ torchvision
 tqdm
 matplotlib
 seaborn
+fastapi
+uvicorn
+python-multipart
