@@ -4,12 +4,19 @@ import csv
 
 import cv2
 import numpy as np
-import torch
-import torch.nn as nn
+import onnxruntime as ort
 
-from torchvision.models.video import r3d_18
+HUGGINGFACE_MODEL_URL = (
+    "https://huggingface.co/pal-ashutosh-007/"
+    "sign-language-recognition/resolve/main/"
+    "sign_language_model.onnx"
+)
 
-
+HUGGINGFACE_MODEL_DATA_URL = (
+    "https://huggingface.co/pal-ashutosh-007/"
+    "sign-language-recognition/resolve/main/"
+    "sign_language_model.onnx.data"
+)
 # ============================================================
 # KINETICS-400 NORMALIZATION
 # Same normalization used during model training
@@ -35,14 +42,14 @@ HUGGINGFACE_MODEL_URL = (
     "pal-ashutosh-007/"
     "sign-language-recognition/"
     "resolve/main/"
-    "sign_language_model.pth"
+    "sign_language_model.onnx"
 )
 
 
 class SignLanguagePredictor:
     """
-    Inference service for the trained AUTSL Sign Language
-    Recognition model.
+    ONNX Runtime inference service for the trained
+    AUTSL Sign Language Recognition model.
     """
 
     def __init__(
@@ -52,7 +59,6 @@ class SignLanguagePredictor:
         num_classes: int = 226,
         num_frames: int = 8,
         image_size: int = 160,
-        dropout_rate: float = 0.5,
     ):
         self.model_path = Path(model_path)
         self.class_mapping_path = Path(class_mapping_path)
@@ -60,19 +66,6 @@ class SignLanguagePredictor:
         self.num_classes = num_classes
         self.num_frames = num_frames
         self.image_size = image_size
-        self.dropout_rate = dropout_rate
-
-        # ----------------------------------------------------
-        # Device
-        # ----------------------------------------------------
-
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
-
-        print(
-            f"[INFO] Inference device: {self.device}"
-        )
 
         # ----------------------------------------------------
         # Load class mapping
@@ -81,25 +74,30 @@ class SignLanguagePredictor:
         self.class_mapping = self._load_class_mapping()
 
         # ----------------------------------------------------
-        # Build model
+        # Load ONNX model
         # ----------------------------------------------------
 
-        self.model = self._build_model()
+        self.session = self._load_model()
 
         # ----------------------------------------------------
-        # Load trained weights
+        # Input / output names
         # ----------------------------------------------------
 
-        self._load_model()
+        self.input_name = (
+            self.session.get_inputs()[0].name
+        )
 
-        # ----------------------------------------------------
-        # Evaluation mode
-        # ----------------------------------------------------
-
-        self.model.eval()
+        self.output_name = (
+            self.session.get_outputs()[0].name
+        )
 
         print(
-            "[INFO] Sign Language model loaded successfully."
+            "[INFO] ONNX Runtime inference provider: "
+            f"{self.session.get_providers()}"
+        )
+
+        print(
+            "[INFO] Sign Language ONNX model loaded successfully."
         )
 
         print(
@@ -206,90 +204,31 @@ class SignLanguagePredictor:
         return mapping
 
     # ========================================================
-    # MODEL
-    # ========================================================
-
-    def _build_model(self):
-        """
-        Recreate the exact R3D-18 architecture used
-        during training.
-        """
-
-        model = r3d_18(
-            weights=None
-        )
-
-        in_features = model.fc.in_features
-
-        model.fc = nn.Sequential(
-            nn.Dropout(
-                self.dropout_rate
-            ),
-            nn.Linear(
-                in_features,
-                self.num_classes
-            )
-        )
-
-        model = model.to(
-            self.device
-        )
-
-        return model
-
-    # ========================================================
     # DOWNLOAD MODEL
     # ========================================================
 
     def _download_model(self):
-        """
-        Download the trained model from Hugging Face.
-        """
+        self.model_path.parent.mkdir(parents=True, exist_ok=True)
 
-        print(
-            "[INFO] Model file not found locally."
+        model_data_path = self.model_path.with_name(
+            self.model_path.name + ".data"
         )
 
-        print(
-            "[INFO] Downloading model from Hugging Face..."
-        )
-
-        # ----------------------------------------------------
-        # Create model directory
-        # ----------------------------------------------------
-
-        self.model_path.parent.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-
-        try:
-
+        if not self.model_path.exists():
+            print("[INFO] Downloading ONNX model...")
             urlretrieve(
                 HUGGINGFACE_MODEL_URL,
                 self.model_path
             )
+            print("[INFO] ONNX model downloaded.")
 
-            print(
-                "[INFO] Model downloaded successfully."
+        if not model_data_path.exists():
+            print("[INFO] Downloading ONNX external data...")
+            urlretrieve(
+                HUGGINGFACE_MODEL_DATA_URL,
+                model_data_path
             )
-
-        except Exception as error:
-
-            # Remove incomplete download
-            if self.model_path.exists():
-
-                try:
-                    self.model_path.unlink()
-
-                except Exception:
-                    pass
-
-            raise RuntimeError(
-                "Failed to download model from "
-                "Hugging Face: "
-                f"{error}"
-            ) from error
+            print("[INFO] ONNX external data downloaded.")
 
     # ========================================================
     # LOAD MODEL
@@ -297,84 +236,39 @@ class SignLanguagePredictor:
 
     def _load_model(self):
         """
-        Load trained model state dictionary.
+        Load the ONNX model using ONNX Runtime.
 
-        If the model file is not available locally,
+        If the model is not available locally,
         automatically download it from Hugging Face.
         """
-
-        # ----------------------------------------------------
-        # Check local model
-        # ----------------------------------------------------
 
         if self.model_path.exists():
 
             print(
-                "[INFO] Local model file found."
+                "[INFO] Local ONNX model file found."
             )
 
         else:
-
-            # ------------------------------------------------
-            # Download model for Render / cloud deployment
-            # ------------------------------------------------
 
             self._download_model()
 
-        # ----------------------------------------------------
-        # Load trained weights
-        # ----------------------------------------------------
+        try:
 
-        checkpoint = torch.load(
-            self.model_path,
-            map_location=self.device,
-            weights_only=False
-        )
-
-        # ----------------------------------------------------
-        # Handle checkpoint format
-        # ----------------------------------------------------
-
-        if isinstance(
-            checkpoint,
-            dict
-        ):
-
-            if "model_state_dict" in checkpoint:
-
-                state_dict = (
-                    checkpoint[
-                        "model_state_dict"
-                    ]
-                )
-
-                print(
-                    "[INFO] Loading model_state_dict "
-                    "from checkpoint."
-                )
-
-            else:
-
-                state_dict = checkpoint
-
-                print(
-                    "[INFO] Loading model state dictionary."
-                )
-
-        else:
-
-            raise ValueError(
-                "Unsupported model file format."
+            session = ort.InferenceSession(
+                str(self.model_path),
+                providers=[
+                    "CPUExecutionProvider"
+                ]
             )
 
-        # ----------------------------------------------------
-        # Load weights
-        # ----------------------------------------------------
+        except Exception as error:
 
-        self.model.load_state_dict(
-            state_dict,
-            strict=True
-        )
+            raise RuntimeError(
+                "Failed to load ONNX model: "
+                f"{error}"
+            ) from error
+
+        return session
 
     # ========================================================
     # FRAME SAMPLING
@@ -384,10 +278,6 @@ class SignLanguagePredictor:
         self,
         total_frames: int
     ):
-        """
-        Deterministic temporal sampling used for
-        validation/test inference.
-        """
 
         if total_frames <= 0:
             return [0] * self.num_frames
@@ -454,18 +344,9 @@ class SignLanguagePredictor:
             black - KINETICS_MEAN
         ) / KINETICS_STD
 
-        tensor = torch.from_numpy(
-            black
-        )
-
-        tensor = tensor.permute(
-            3,
-            0,
-            1,
-            2
-        ).contiguous()
-
-        return tensor.float()
+        return black.transpose(
+            3, 0, 1, 2
+        ).astype(np.float32)
 
     # ========================================================
     # VIDEO LOADING
@@ -560,19 +441,13 @@ class SignLanguagePredictor:
                         frame.copy()
                     )
 
-                # ------------------------------------------------
                 # BGR -> RGB
-                # ------------------------------------------------
-
                 frame = cv2.cvtColor(
                     frame,
                     cv2.COLOR_BGR2RGB
                 )
 
-                # ------------------------------------------------
                 # Resize
-                # ------------------------------------------------
-
                 frame = cv2.resize(
                     frame,
                     (
@@ -582,10 +457,7 @@ class SignLanguagePredictor:
                     interpolation=cv2.INTER_LINEAR
                 )
 
-                # ------------------------------------------------
                 # [0,255] -> [0,1]
-                # ------------------------------------------------
-
                 frame = (
                     frame.astype(
                         np.float32
@@ -614,10 +486,6 @@ class SignLanguagePredictor:
         finally:
 
             cap.release()
-
-        # ----------------------------------------------------
-        # Make sure exactly num_frames exist
-        # ----------------------------------------------------
 
         if len(frames) != self.num_frames:
 
@@ -649,39 +517,23 @@ class SignLanguagePredictor:
                 :self.num_frames
             ]
 
-        # ----------------------------------------------------
         # [T,H,W,C]
-        # ----------------------------------------------------
-
         clip = np.stack(
             frames,
             axis=0
         )
 
-        # ----------------------------------------------------
         # Kinetics normalization
-        # ----------------------------------------------------
-
         clip = (
             clip - KINETICS_MEAN
         ) / KINETICS_STD
 
-        # ----------------------------------------------------
-        # [T,H,W,C]
-        # ->
-        # [C,T,H,W]
-        # ----------------------------------------------------
-
-        clip = torch.from_numpy(
-            clip
-        ).float()
-
-        clip = clip.permute(
-            3,
-            0,
-            1,
-            2
-        ).contiguous()
+        # [T,H,W,C] -> [C,T,H,W]
+        clip = clip.transpose(
+            3, 0, 1, 2
+        ).astype(
+            np.float32
+        )
 
         return clip
 
@@ -721,30 +573,43 @@ class SignLanguagePredictor:
         # Add batch dimension
         # ----------------------------------------------------
 
-        clip = clip.unsqueeze(
-            0
-        )
-
-        clip = clip.to(
-            self.device
+        clip = np.expand_dims(
+            clip,
+            axis=0
+        ).astype(
+            np.float32
         )
 
         # ----------------------------------------------------
-        # Inference
+        # ONNX inference
         # ----------------------------------------------------
 
-        with torch.no_grad():
+        logits = self.session.run(
+            [self.output_name],
+            {
+                self.input_name: clip
+            }
+        )[0]
 
-            logits = self.model(
-                clip
-            )
+        # ----------------------------------------------------
+        # Softmax
+        # ----------------------------------------------------
 
-            probabilities = (
-                torch.softmax(
-                    logits,
-                    dim=1
-                )
-            )
+        logits = logits[0]
+
+        logits = (
+            logits
+            - np.max(logits)
+        )
+
+        exp_logits = np.exp(
+            logits
+        )
+
+        probabilities = (
+            exp_logits
+            / np.sum(exp_logits)
+        )
 
         # ----------------------------------------------------
         # Top-K
@@ -755,25 +620,9 @@ class SignLanguagePredictor:
             self.num_classes
         )
 
-        top_probs, top_indices = (
-            torch.topk(
-                probabilities,
-                k=k,
-                dim=1
-            )
-        )
-
-        top_probs = (
-            top_probs[0]
-            .cpu()
-            .numpy()
-        )
-
-        top_indices = (
-            top_indices[0]
-            .cpu()
-            .numpy()
-        )
+        top_indices = np.argsort(
+            probabilities
+        )[::-1][:k]
 
         # ----------------------------------------------------
         # Main prediction
@@ -790,7 +639,9 @@ class SignLanguagePredictor:
         )
 
         confidence = float(
-            top_probs[0]
+            probabilities[
+                predicted_class
+            ]
         )
 
         # ----------------------------------------------------
@@ -799,13 +650,10 @@ class SignLanguagePredictor:
 
         top_predictions = []
 
-        for class_idx, probability in zip(
-            top_indices,
-            top_probs
-        ):
+        for class_id in top_indices:
 
             class_id = int(
-                class_idx
+                class_id
             )
 
             top_predictions.append(
@@ -815,7 +663,9 @@ class SignLanguagePredictor:
                         class_id
                     ],
                     "confidence": float(
-                        probability
+                        probabilities[
+                            class_id
+                        ]
                     )
                 }
             )
@@ -844,7 +694,7 @@ if __name__ == "__main__":
         PROJECT_ROOT
         / "artifacts"
         / "model"
-        / "sign_language_model.pth"
+        / "sign_language_model.onnx"
     )
 
     CLASS_MAPPING_PATH = (
@@ -861,7 +711,7 @@ if __name__ == "__main__":
 
     print()
     print("=" * 60)
-    print("MODEL + CLASS MAPPING TEST")
+    print("ONNX MODEL + CLASS MAPPING TEST")
     print("=" * 60)
 
     print(
@@ -877,7 +727,7 @@ if __name__ == "__main__":
     )
 
     print(
-        f"Device: {predictor.device}"
+        f"Providers: {predictor.session.get_providers()}"
     )
 
     print("Status: SUCCESS")

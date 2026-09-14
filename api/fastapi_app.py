@@ -20,7 +20,7 @@ MODEL_PATH = (
     PROJECT_ROOT
     / "artifacts"
     / "model"
-    / "sign_language_model.pth"
+    / "sign_language_model.onnx"
 )
 
 CLASS_MAPPING_PATH = (
